@@ -53,6 +53,9 @@ func LookupDomain(domain, dnsServer string) (*DNSResponse, error) {
 	}
 
 	c := new(dns.Client)
+	// Use TCP for DNS queries
+	// With Default UDP few domain TXT record are not shown
+	c.Net = "tcp"
 
 	// Additional DNS types
 	types := []uint16{dns.TypeNS, dns.TypeDNSKEY, dns.TypeCAA, dns.TypeA, dns.TypeAAAA, dns.TypeMX, dns.TypeCNAME, dns.TypeTXT, dns.TypeSOA, dns.TypeSPF}
@@ -83,6 +86,36 @@ func LookupDomain(domain, dnsServer string) (*DNSResponse, error) {
 		}
 	}
 
+	// List of subdomains to check
+	subdomainstypes := []uint16{dns.TypeTXT}
+
+	subdomains := []string{"_dmarc", "_acme-challenge"}
+
+	for _, subdomain := range subdomains {
+		for _, t := range subdomainstypes {
+			fullSubdomain := fmt.Sprintf("%s.%s", subdomain, domain)
+
+			m := new(dns.Msg)
+			m.SetQuestion(dns.Fqdn(fullSubdomain), t)
+			m.RecursionDesired = true
+
+			fmt.Print("\n")
+			fmt.Printf("%s%s %s\n", Blue, fullSubdomain, dns.TypeToString[t])
+			r, _, err := c.Exchange(m, config.Servers[0]+":"+config.Port)
+			if err != nil {
+				return nil, err
+			}
+
+			if r.Rcode == dns.RcodeSuccess {
+				records = append(records, r.Answer...)
+
+				// Print DNS records specifically
+				for _, record := range r.Answer {
+					fmt.Printf("%s%v%s\n", White, record, Reset)
+				}
+			}
+		}
+	}
 	if len(records) == 0 {
 		fmt.Println("No DNS Records found.")
 	}
