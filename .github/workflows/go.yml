@@ -34,7 +34,6 @@ jobs:
     - name: Go Dependency Submission
       uses: actions/go-dependency-submission@v1.0.3
       with:
-      go-mod-path: # default is go.mod
-      go-build-target: # default is all
+        go-mod-path: go.mod
           
 
