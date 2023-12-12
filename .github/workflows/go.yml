@@ -9,6 +9,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# The API requires write permission on the repository to submit dependencies
+permissions:
+  contents: write
+  
 jobs:
 
   build:
@@ -26,3 +30,11 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+
+    - name: Run snapshot action
+        uses: actions/go-dependency-submission@v1
+        with:
+            # Required: Define the repo path to the go.mod file used by the
+            # build target
+            go-mod-path: ./go.mod
+
