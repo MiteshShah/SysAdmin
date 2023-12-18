@@ -44,74 +44,74 @@ type DNSResponse struct {
 	Records   []dns.RR
 }
 
-func LookupDomain(domain, dnsServer string) (*DNSResponse, error) {
+func LookupDomain(domain, customDNS string) (*DNSResponse, error) {
 	config, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
 
-	if dnsServer != "" {
+	if customDNS != "" {
 		// Use the custom DNS server if provided
-		config.Servers = []string{dnsServer}
+		config.Servers = []string{customDNS}
 	}
 
-	c := new(dns.Client)
+	client := new(dns.Client)
 	// Use TCP for DNS queries
-	// With Default UDP few domain TXT record are not shown
-	c.Net = "tcp"
+	// With Default UDP, few domain TXT records are not shown
+	client.Net = "tcp"
 
 	// Additional DNS types
-	types := []uint16{dns.TypeNS, dns.TypeDNSKEY, dns.TypeCAA, dns.TypeA, dns.TypeAAAA, dns.TypeMX, dns.TypeCNAME, dns.TypeTXT, dns.TypeSOA, dns.TypeSPF}
+	dnsTypes := []uint16{dns.TypeNS, dns.TypeDNSKEY, dns.TypeCAA, dns.TypeA, dns.TypeAAAA, dns.TypeMX, dns.TypeCNAME, dns.TypeTXT, dns.TypeSOA, dns.TypeSPF}
 
 	var records []dns.RR
 	// Now you can print the final results after the loop
 	fmt.Printf("%sDNS Server Used: %s%s\n", Green, config.Servers[0], Reset)
 
-	for _, t := range types {
-		m := new(dns.Msg)
-		m.SetQuestion(dns.Fqdn(domain), t)
-		m.RecursionDesired = true
+	for _, recordType := range dnsTypes {
+		message := new(dns.Msg)
+		message.SetQuestion(dns.Fqdn(domain), recordType)
+		message.RecursionDesired = true
 
 		fmt.Print("\n")
-		fmt.Printf("%s%s %s\n", Blue, domain, dns.TypeToString[t])
-		r, _, err := c.Exchange(m, config.Servers[0]+":"+config.Port)
+		fmt.Printf("%s%s %s\n", Blue, domain, dns.TypeToString[recordType])
+		response, _, err := client.Exchange(message, config.Servers[0]+":"+config.Port)
 		if err != nil {
 			return nil, err
 		}
 
-		if r.Rcode == dns.RcodeSuccess {
-			records = append(records, r.Answer...)
+		if response.Rcode == dns.RcodeSuccess {
+			records = append(records, response.Answer...)
 
 			// Print DNS records specifically
-			for _, record := range r.Answer {
-				fmt.Printf("%s%v%s\n", White, record, Reset)
+			for _, dnsRecord := range response.Answer {
+				fmt.Printf("%s%v%s\n", White, dnsRecord, Reset)
 			}
 		}
 	}
 
 	// List of subdomains to check
-	subdomainstypes := []uint16{dns.TypeTXT}
+	subdomainTypes := []uint16{dns.TypeTXT}
 
 	subdomains := []string{"_dmarc", "_acme-challenge"}
 
 	for _, subdomain := range subdomains {
-		for _, t := range subdomainstypes {
+		for _, subdomainType := range subdomainTypes {
 			fullSubdomain := fmt.Sprintf("%s.%s", subdomain, domain)
 
-			m := new(dns.Msg)
-			m.SetQuestion(dns.Fqdn(fullSubdomain), t)
-			m.RecursionDesired = true
+			message := new(dns.Msg)
+			message.SetQuestion(dns.Fqdn(fullSubdomain), subdomainType)
+			message.RecursionDesired = true
 
 			fmt.Print("\n")
-			fmt.Printf("%s%s %s\n", Blue, fullSubdomain, dns.TypeToString[t])
-			r, _, err := c.Exchange(m, config.Servers[0]+":"+config.Port)
+			fmt.Printf("%s%s %s\n", Blue, fullSubdomain, dns.TypeToString[subdomainType])
+			response, _, err := client.Exchange(message, config.Servers[0]+":"+config.Port)
 			if err != nil {
 				return nil, err
 			}
 
-			if r.Rcode == dns.RcodeSuccess {
-				records = append(records, r.Answer...)
+			if response.Rcode == dns.RcodeSuccess {
+				records = append(records, response.Answer...)
 
 				// Print DNS records specifically
-				for _, record := range r.Answer {
-					fmt.Printf("%s%v%s\n", White, record, Reset)
+				for _, dnsRecord := range response.Answer {
+					fmt.Printf("%s%v%s\n", White, dnsRecord, Reset)
 				}
 			}
 		}
