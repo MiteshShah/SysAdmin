@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/miekg/dns"
 	"os"
+
+	"github.com/miekg/dns"
 )
 
 // ANSI color codes
